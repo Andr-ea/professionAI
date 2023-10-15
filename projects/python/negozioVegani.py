@@ -1,10 +1,13 @@
 import json
-import os
 
 products = []
 sales = []
 
 def load_data():
+    """
+    Load data from the 'vegan_store.json' file and update the 'products' and 'sales' global lists.
+    If the file is not found, an empty list is returned.
+    """
     try:
         with open("vegan_store.json", "r") as file:
             data = json.load(file)
@@ -15,6 +18,9 @@ def load_data():
         return []
 
 def save_data():
+    """
+    Save the current state of 'products' and 'sales' to the 'vegan_store.json' file.
+    """
     data = {'products': products, 'sales': sales}
     with open('vegan_store.json', 'w') as file:
         json.dump(data, file)
@@ -23,6 +29,9 @@ def save_data():
 load_data()
 
 def help():
+    """
+    Display a list of available commands.
+    """
     print("\nComandi disponibili:")
     print("- aggiungi: Aggiungi un prodotto al magazzino")
     print("- elenca. Elenca i prodotti in magazzino")
@@ -32,6 +41,9 @@ def help():
     print("- chiudi. Esci dal programma")
 
 def read_number(args):
+    """
+    Prompt the user for input and convert it to a floating-point number.
+    """
     while True:
         try:
             value = float(input(args))
@@ -40,19 +52,28 @@ def read_number(args):
             print("Inserisci un valore numerico valido.")
 
 def add_product():
+    """
+    Add a product if it is not present, otherwise update the quantity
+    """
     try:
         name = input("Nome del prodotto: ").strip()
-        amount = int(read_number("Quantità: "))
 
-        if amount <= 0:
-            raise ValueError("La quantità deve essere maggiore di zero")
+        while True:
+            try:
+                amount = (read_number("Quantità: "))
+                if amount > 0 and amount.is_integer():
+                    break
+                else:
+                    print("La Quantità deve essere un numero intero positivo")
+            except ValueError:
+                print("Valore non valido!")
 
         #Check if the product is already in the store
-        prodotto_esistente = next((product for product in products if product['name'] == name), None)
+        existing_product = next((product for product in products if product['name'] == name), None)
 
-        if prodotto_esistente:
-            prodotto_esistente['amount'] += amount
-            print(f"La quantità di {name} è stata aggiornata a {prodotto_esistente['amount']}.")
+        if existing_product:
+            existing_product['amount'] += amount
+            print(f"La quantità di {name} è stata aggiornata a {existing_product['amount']}.")
             save_data()
         else:
             purchase_price = read_number("Prezzo di acquisto: ")
@@ -76,38 +97,43 @@ def add_product():
         print(f"Error: {e}")
 
 def product_list():
+    """
+    Display a list of products with quantities and prices.
+    """
     print("\nProdotto | Quantità | Prezzo:")
     for product in products:
         print(f"{product['name']} | {product['amount']} | €{product['selling_price']}")
 
 def record_sale():
-    current_sale = []
+    """
+    Record a sale updating sales and product quantities.
+    """
     total = 0
     while True:
         product_name = input("Nome del prodotto venduto: ")
-        prodotto_esistente = next((product for product in products if product['name'] == product_name), None)
-        if (prodotto_esistente):
-                sold_amount = int(input("Inserisci la quantità venduta: "))
-                if sold_amount <= 0:
-                    raise ValueError("La quantità venduta deve essere maggiore di zero")
+        existing_product = next((product for product in products if product['name'] == product_name), None)
+        if (existing_product):
+            sold_amount = int(input("Inserisci la quantità venduta: "))
+            if sold_amount <= 0:
+                raise ValueError("La quantità venduta deve essere maggiore di zero")
 
-                if prodotto_esistente['amount'] >= sold_amount:
-                    sale = {
-                        "name": prodotto_esistente['name'],
-                        "sold_amount": sold_amount,
-                        "selling_price": prodotto_esistente['selling_price']
-                    }
-                    sales.append(sale)
-                    current_sale.append(sale)
-                    prodotto_esistente['amount'] -= sold_amount
-                    if prodotto_esistente['amount'] <= 0:            ##
-                        products.remove(prodotto_esistente)     ##
+            if existing_product['amount'] >= sold_amount:
+                sale = {
+                    "name": existing_product['name'],
+                    "sold_amount": sold_amount,
+                    "selling_price": existing_product['selling_price'],
+                    "purchase_price": existing_product['purchase_price']
+                }
+                sales.append(sale)
+                existing_product['amount'] -= sold_amount
+                if existing_product['amount'] <= 0:
+                    products.remove(existing_product)
 
-                    total += sale['selling_price'] * sale['sold_amount']
-                    print(f"Vendita registrata!")
-                    save_data()
-                else:
-                    print("Quantità non disponibile.")
+                total += sale['selling_price'] * sale['sold_amount']
+                print(f"Vendita registrata!")
+                save_data()
+            else:
+                print("Quantità non disponibile.")
 
         else:
             print("Prodotto non disponibile.")
@@ -120,17 +146,26 @@ def record_sale():
             break
 
 def calculate_gross_profit(sales):
+    """
+    Calculate the gross profit based on recorded sales.
+    """
     return sum(sale['selling_price'] * sale['sold_amount'] for sale in sales)
 
-def calculate_net_profit(sales, products):
-    purchase_cost = sum(product['purchase_price'] * sale['sold_amount'] for sale in sales for product in products if product['name'] == sale['name'])
+def calculate_net_profit(sales):
+    """
+    Calculate the net profit, taking into account purchase costs.
+    """
+    purchase_cost = sum(sale['purchase_price'] * sale['sold_amount'] for sale in sales )
     gross_profit = calculate_gross_profit(sales)
     net_profit = gross_profit - purchase_cost
     return net_profit
 
 def calculate_profits():
+    """
+    Calculate and display both gross and net profits.
+    """
     gross_profit = calculate_gross_profit(sales)
-    net_profit = calculate_net_profit(sales, products)
+    net_profit = calculate_net_profit(sales)
 
     print(f"\nProfitto Lordo: {round(gross_profit,2)}")
     print(f"Profitto Netto: {round(net_profit,2)}")
